@@ -6,7 +6,7 @@ import VideoPlayer from "@/components/media/VideoPlayer";
 
 interface Media {
   _id: string; title: string; url: string; thumbnail?: string;
-  duration?: number; categories: string[]; createdAt: string;
+  duration?: number; categories: { slug: string; label: string }[]; createdAt: string;
 }
 interface Category { slug: string; label: string }
 
@@ -20,7 +20,7 @@ export default function VideosPage() {
   useEffect(() => {
     Promise.all([
       fetch("/api/media?page=videos&limit=100").then((r) => r.json()),
-      fetch("/api/categories?mediaType=video").then((r) => r.json()),
+      fetch("/api/categories").then((r) => r.json()),
     ]).then(([m, c]) => {
       setVideos(m.data ?? []);
       setCategories(c.data ?? []);
@@ -33,7 +33,7 @@ export default function VideosPage() {
   }
 
   const filtered = activeCats.length
-    ? videos.filter((v) => v.categories.some((c) => activeCats.includes(c)))
+    ? videos.filter((v) => v.categories.some((c) => activeCats.includes(c.slug)))
     : videos;
 
   return (

@@ -15,13 +15,14 @@ export async function GET(req: NextRequest) {
   try {
     await connectDB();
     const { searchParams } = new URL(req.url);
+    const page = searchParams.get("page");
     const mediaType = searchParams.get("mediaType");
 
-    const filter = mediaType
-      ? { mediaTypes: { $in: [mediaType as "video" | "photo"] } }
-      : {};
-    const categories = await Category.find(filter).sort({ label: 1 }).lean();
+    const filter: Record<string, unknown> = {};
+    if (page) filter.page = page;
+    if (mediaType) filter.mediaTypes = { $in: [mediaType] };
 
+    const categories = await Category.find(filter).sort({ label: 1 }).lean();
     return NextResponse.json({ data: categories });
   } catch (err) {
     console.error("[categories GET]", err);
@@ -34,20 +35,17 @@ export async function POST(req: NextRequest) {
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { label } = await req.json();
-    if (!label?.trim()) {
-      return NextResponse.json({ error: "Label is required" }, { status: 400 });
-    }
+    const { label, page } = await req.json();
+    if (!label?.trim()) return NextResponse.json({ error: "Label is required" }, { status: 400 });
+    if (!page) return NextResponse.json({ error: "Page is required" }, { status: 400 });
 
     await connectDB();
     const slug = toSlug(label);
 
-    const existing = await Category.findOne({ slug });
-    if (existing) {
-      return NextResponse.json({ data: existing }, { status: 200 });
-    }
+    const existing = await Category.findOne({ slug, page });
+    if (existing) return NextResponse.json({ data: existing }, { status: 200 });
 
-    const category = await Category.create({ slug, label: label.trim(), mediaTypes: [] });
+    const category = await Category.create({ slug, label: label.trim(), page, mediaTypes: [] });
     return NextResponse.json({ data: category }, { status: 201 });
   } catch (err) {
     console.error("[categories POST]", err);

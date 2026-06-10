@@ -45,7 +45,8 @@ export async function POST(req: NextRequest) {
     const balance = totalAmount - downPayment;
 
     const today = new Date();
-    const releaseDate = new Date(listing.releaseDate);
+    // Use 1st of the end release month as the effective payment deadline
+    const releaseDate = new Date(listing.releaseYear, listing.releaseMonthEnd - 1, 1);
 
     let weeklyAmount: number | null = null;
     let monthlyAmount: number | null = null;

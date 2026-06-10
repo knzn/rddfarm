@@ -6,7 +6,7 @@ interface VideoCardProps {
   title: string;
   thumbnail?: string;
   duration?: number;
-  categories: string[];
+  categories: { slug: string; label: string }[];
   createdAt: string;
   onClick: () => void;
 }
@@ -45,7 +45,7 @@ export default function VideoCard({ title, thumbnail, duration, categories, crea
         <p className="text-sm font-medium line-clamp-2 leading-snug mb-2" style={{ color: "var(--text-primary)" }}>{title || "Untitled"}</p>
         <div className="flex flex-wrap gap-1 mb-1.5">
           {categories.slice(0, 3).map((c) => (
-            <span key={c} className="text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--bg-raised)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>{c}</span>
+            <span key={c.slug} className="text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--bg-raised)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>{c.label}</span>
           ))}
         </div>
         <p className="text-xs" style={{ color: "var(--text-faint)" }}>{new Date(createdAt).toLocaleDateString()}</p>

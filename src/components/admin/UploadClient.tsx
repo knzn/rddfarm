@@ -16,6 +16,7 @@ export default function UploadClient() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [page, setPage] = useState<typeof PAGE_OPTIONS[number]>("videos");
+  const [featured, setFeatured] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -23,10 +24,11 @@ export default function UploadClient() {
   const thumbRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch("/api/categories")
+    fetch(`/api/categories?page=${page}`)
       .then((r) => r.json())
       .then((j) => setCategories(j.data ?? []));
-  }, []);
+    setSelectedCats([]);
+  }, [page]);
 
   function toggleCat(slug: string) {
     setSelectedCats((prev) =>
@@ -39,7 +41,7 @@ export default function UploadClient() {
     const res = await fetch("/api/categories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label: newCat.trim() }),
+      body: JSON.stringify({ label: newCat.trim(), page }),
     });
     const j = await res.json();
     if (j.data) {
@@ -57,46 +59,45 @@ export default function UploadClient() {
     setErrorMsg("");
 
     try {
-      // 1. Get presigned URL
-      const presignRes = await fetch("/api/media/presign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: file.name, contentType: file.type }),
-      });
-      const { presignedUrl, finalCdnUrl } = await presignRes.json();
+      // 1. Upload main file via server route (avoids CORS)
+      setProgress(20);
+      const fd = new FormData();
+      fd.append("file", file);
+      const folder = file.type.startsWith("video/") ? "portfolio/videos" : "portfolio/photos";
+      fd.append("folder", folder);
 
-      // 2. Upload to DO Spaces via XHR for progress
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 90));
-        };
-        xhr.onload = () => (xhr.status < 300 ? resolve() : reject(new Error("Upload failed")));
-        xhr.onerror = () => reject(new Error("Network error"));
-        xhr.open("PUT", presignedUrl);
-        xhr.setRequestHeader("Content-Type", file.type);
-        xhr.setRequestHeader("x-amz-acl", "public-read");
-        xhr.send(file);
-      });
+      const uploadRes = await fetch("/api/media/upload", { method: "POST", body: fd });
+      if (!uploadRes.ok) {
+        const j = await uploadRes.json();
+        throw new Error(j.error ?? "Upload failed");
+      }
+      const { url: finalCdnUrl } = await uploadRes.json();
+      setProgress(70);
 
-      // 3. Upload thumbnail if provided
+      // 2. Upload thumbnail if provided
       let thumbnailUrl = "";
       if (thumb) {
-        const tPresign = await fetch("/api/media/presign", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ filename: `thumb_${thumb.name}`, contentType: thumb.type }),
-        });
-        const { presignedUrl: tUrl, finalCdnUrl: tCdn } = await tPresign.json();
-        await fetch(tUrl, { method: "PUT", body: thumb, headers: { "Content-Type": thumb.type, "x-amz-acl": "public-read" } });
-        thumbnailUrl = tCdn;
+        const tFd = new FormData();
+        tFd.append("file", thumb);
+        tFd.append("folder", "portfolio/thumbnails");
+        const tRes = await fetch("/api/media/upload", { method: "POST", body: tFd });
+        if (tRes.ok) {
+          const { url } = await tRes.json();
+          thumbnailUrl = url;
+        }
       }
+      setProgress(90);
 
-      setProgress(95);
+      // 3. Resolve category slugs → ObjectIds
+      const catIds: string[] = [];
+      for (const slug of selectedCats) {
+        const cat = categories.find((c) => c.slug === slug);
+        if (cat) catIds.push(cat._id);
+      }
 
       // 4. Save media record
       const mediaType = file.type.startsWith("video") ? "video" : "photo";
-      await fetch("/api/media", {
+      const saveRes = await fetch("/api/media", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -106,9 +107,14 @@ export default function UploadClient() {
           description,
           url: finalCdnUrl,
           thumbnail: thumbnailUrl || undefined,
-          categories: selectedCats,
+          categoryIds: catIds,
+          featured,
         }),
       });
+      if (!saveRes.ok) {
+        const j = await saveRes.json();
+        throw new Error(j.error ?? "Failed to save media record");
+      }
 
       setProgress(100);
       setStatus("done");
@@ -182,6 +188,17 @@ export default function UploadClient() {
             {PAGE_OPTIONS.map((p) => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
           </select>
         </div>
+
+        {/* Featured (jumbotron) — photos only */}
+        {page === "photos" && (
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input type="checkbox" checked={featured} onChange={(e) => setFeatured(e.target.checked)}
+              className="w-4 h-4 rounded accent-blue-500" />
+            <span className="text-sm" style={{ color: "var(--text-muted)" }}>
+              Show on homepage jumbotron slideshow ⭐
+            </span>
+          </label>
+        )}
 
         {/* Categories */}
         <div>

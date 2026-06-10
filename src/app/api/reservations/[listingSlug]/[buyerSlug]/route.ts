@@ -11,7 +11,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
     const reservation = await Reservation.findOne({ listingSlug, slug: buyerSlug }).lean();
 
-    if (!reservation || !reservation.isConfirmed) {
+    if (!reservation) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 

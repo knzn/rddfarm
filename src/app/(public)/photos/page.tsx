@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import PhotoCard from "@/components/media/PhotoCard";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
-interface Media { _id: string; title: string; url: string; categories: string[]; createdAt: string }
+interface Media { _id: string; title: string; url: string; categories: { slug: string; label: string }[]; createdAt: string }
 interface Category { slug: string; label: string }
 
 function Lightbox({ photos, idx, onClose, onPrev, onNext }: {
@@ -41,7 +41,7 @@ export default function PhotosPage() {
   useEffect(() => {
     Promise.all([
       fetch("/api/media?page=photos&limit=200").then((r) => r.json()),
-      fetch("/api/categories?mediaType=photo").then((r) => r.json()),
+      fetch("/api/categories").then((r) => r.json()),
     ]).then(([m, c]) => { setPhotos(m.data ?? []); setCategories(c.data ?? []); setLoading(false); });
   }, []);
 
@@ -49,7 +49,7 @@ export default function PhotosPage() {
     setActiveCats((prev) => prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]);
   }
 
-  const filtered = activeCats.length ? photos.filter((p) => p.categories.some((c) => activeCats.includes(c))) : photos;
+  const filtered = activeCats.length ? photos.filter((p) => p.categories.some((c) => activeCats.includes(c.slug))) : photos;
 
   const col1 = filtered.filter((_, i) => i % 3 === 0);
   const col2 = filtered.filter((_, i) => i % 3 === 1);

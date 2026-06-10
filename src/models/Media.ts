@@ -10,6 +10,7 @@ export interface IMedia extends Document {
   categories: Types.ObjectId[];
   duration: number | null;
   featured: boolean;
+  cropPosition: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +26,7 @@ const MediaSchema = new Schema<IMedia>(
     categories: [{ type: Schema.Types.ObjectId, ref: "Category" }],
     duration: { type: Number, default: null },
     featured: { type: Boolean, default: false },
+    cropPosition: { type: String, default: "center center" },
   },
   { timestamps: true }
 );

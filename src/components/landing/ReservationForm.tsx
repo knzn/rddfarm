@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle, MessageCircle } from "lucide-react";
+import { CheckCircle, MessageCircle, Plus, X, Calendar, ExternalLink } from "lucide-react";
+import Link from "next/link";
 
 type ListingType = "pahulugan" | "months-old" | "day-old";
 
@@ -9,7 +10,13 @@ interface Bloodline { name: string; closed: boolean }
 interface Price { category: string; amount: number }
 interface Listing {
   _id: string; name: string; slug: string; type: ListingType;
-  releaseDate: string; bloodlines: Bloodline[]; prices: Price[];
+  releaseMonthStart: number; releaseMonthEnd: number; releaseYear: number;
+  bloodlines: Bloodline[]; prices: Price[];
+}
+
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+function fmtRelease(l: Listing) {
+  return `${MONTHS[l.releaseMonthStart - 1]} – ${MONTHS[l.releaseMonthEnd - 1]} ${l.releaseYear}`;
 }
 
 interface SubmitResult {
@@ -17,6 +24,8 @@ interface SubmitResult {
   totalAmount: number; downPayment: number; balance: number;
   paymentPlan: string; weeklyAmount?: number; monthlyAmount?: number;
 }
+
+interface ContactSettings { messengerUrl: string; facebookUrl: string; phoneNumber: string }
 
 const PAYMENT_PLANS = [
   { value: "full", label: "Pay Full on Release" },
@@ -37,24 +46,27 @@ export default function ReservationForm({ slug, type }: { slug: string; type: Li
   const [buyerNumber, setBuyerNumber] = useState("");
   const [paymentPlan, setPaymentPlan] = useState("full");
 
-  // Pahulugan: single order item
-  const [pahItem, setPahItem] = useState({ bloodline: "", category: "", qty: 1 });
+  // Pahulugan: multiple rows (bloodline + category + qty)
+  const [pahRows, setPahRows] = useState([{ bloodline: "", category: "", qty: 1 }]);
 
-  // Months/Day old: multiple rows
+  // Months/Day old: multiple rows (bloodline + qty)
   const [rows, setRows] = useState([{ bloodline: "", qty: 1 }]);
 
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<SubmitResult | null>(null);
   const [error, setError] = useState("");
+  const [contact, setContact] = useState<ContactSettings>({ messengerUrl: "", facebookUrl: "", phoneNumber: "" });
 
   useEffect(() => {
-    fetch(`/api/listings/${slug}`)
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.error) setNotFound(true);
-        else setListing(j.data);
-        setLoading(false);
-      });
+    Promise.all([
+      fetch(`/api/listings/${slug}`).then((r) => r.json()),
+      fetch("/api/settings").then((r) => r.json()),
+    ]).then(([lj, sj]) => {
+      if (lj.error) setNotFound(true);
+      else setListing(lj.data);
+      if (sj.data) setContact(sj.data);
+      setLoading(false);
+    });
   }, [slug]);
 
   const openBloodlines = listing?.bloodlines.filter((b) => !b.closed) ?? [];
@@ -62,8 +74,10 @@ export default function ReservationForm({ slug, type }: { slug: string; type: Li
   function calcTotal() {
     if (!listing) return { total: 0, down: 0, balance: 0 };
     if (type === "pahulugan") {
-      const price = listing.prices.find((p) => p.category === pahItem.category)?.amount ?? 0;
-      const total = price * pahItem.qty;
+      const total = pahRows.reduce((s, row) => {
+        const price = listing.prices.find((p) => p.category === row.category)?.amount ?? 0;
+        return s + price * row.qty;
+      }, 0);
       const down = Math.ceil(total * 0.3);
       return { total, down, balance: total - down };
     } else {
@@ -82,8 +96,18 @@ export default function ReservationForm({ slug, type }: { slug: string; type: Li
     setSubmitting(true); setError("");
 
     const items = type === "pahulugan"
-      ? [{ bloodline: pahItem.bloodline, category: pahItem.category, quantity: pahItem.qty, unitPrice: listing.prices.find((p) => p.category === pahItem.category)?.amount ?? 0 }]
-      : rows.filter((r) => r.bloodline && r.qty > 0).map((r) => ({ bloodline: r.bloodline, category: null, quantity: r.qty, unitPrice: listing.prices[0]?.amount ?? 0 }));
+      ? pahRows.filter((r) => r.bloodline && r.category && r.qty > 0).map((r) => ({
+          bloodline: r.bloodline,
+          category: r.category,
+          quantity: r.qty,
+          unitPrice: listing.prices.find((p) => p.category === r.category)?.amount ?? 0,
+        }))
+      : rows.filter((r) => r.bloodline && r.qty > 0).map((r) => ({
+          bloodline: r.bloodline,
+          category: null,
+          quantity: r.qty,
+          unitPrice: listing.prices[0]?.amount ?? 0,
+        }));
 
     const r = await fetch("/api/reservations", {
       method: "POST",
@@ -109,7 +133,14 @@ export default function ReservationForm({ slug, type }: { slug: string; type: Li
         <div className="rounded-[12px] p-8 border text-center" style={{ background: "var(--bg-surface)", borderColor: "var(--border)" }}>
           <CheckCircle size={48} className="mx-auto mb-4" style={{ color: "var(--success)" }} />
           <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: "var(--font-heading)", color: "var(--text-primary)" }}>Reservation Submitted!</h2>
-          <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>Your order is pending admin confirmation. Your public link will go live once confirmed.</p>
+          <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>Your order is pending admin confirmation. Your public link will go live once confirmed.</p>
+
+          {/* Release date prominent */}
+          <div className="flex items-center justify-center gap-2 mb-6 px-4 py-3 rounded-lg" style={{ background: "var(--accent-glow)", border: "1px solid var(--accent)" }}>
+            <Calendar size={16} style={{ color: "var(--accent)" }} />
+            <span className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>Release Date:</span>
+            <span className="text-sm font-bold" style={{ color: "var(--accent)" }}>{fmtRelease(listing)}</span>
+          </div>
 
           <div className="rounded-lg p-4 mb-6 text-left space-y-2" style={{ background: "var(--bg-raised)" }}>
             <div className="flex justify-between text-sm"><span style={{ color: "var(--text-muted)" }}>Total</span><span className="font-mono font-bold" style={{ color: "var(--text-primary)" }}>{fmt(result.totalAmount)}</span></div>
@@ -119,13 +150,34 @@ export default function ReservationForm({ slug, type }: { slug: string; type: Li
             {result.monthlyAmount && <div className="flex justify-between text-sm"><span style={{ color: "var(--text-muted)" }}>Monthly Payment</span><span className="font-mono" style={{ color: "var(--accent)" }}>{fmt(result.monthlyAmount)}/month</span></div>}
           </div>
 
-          <p className="text-xs mb-4" style={{ color: "var(--text-faint)" }}>Your order link: <span style={{ color: "var(--accent)" }}>{result.publicUrl}</span> (active after confirmation)</p>
-
-          <a href={result.messengerUrl} target="_blank" rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium text-sm"
-            style={{ background: "var(--accent)", color: "#fff" }}>
-            <MessageCircle size={16} /> Message Admin on Messenger
-          </a>
+          <div className="space-y-3">
+            <Link href={result.publicUrl}
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-lg font-semibold text-sm border transition-all hover:opacity-80"
+              style={{ border: "1px solid var(--accent)", color: "var(--accent)", background: "transparent" }}>
+              <ExternalLink size={15} /> View My Order Page
+            </Link>
+            {contact.messengerUrl && (
+              <a href={contact.messengerUrl} target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-lg font-semibold text-sm"
+                style={{ background: "var(--accent)", color: "#fff" }}>
+                <MessageCircle size={16} /> Message RDD on Messenger
+              </a>
+            )}
+            {contact.facebookUrl && (
+              <a href={contact.facebookUrl} target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-lg font-semibold text-sm"
+                style={{ background: "#1877F2", color: "#fff" }}>
+                <MessageCircle size={16} /> Visit RDD on Facebook
+              </a>
+            )}
+            {contact.phoneNumber && (
+              <a href={`tel:${contact.phoneNumber.replace(/\s/g, "")}`}
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-lg font-semibold text-sm border"
+                style={{ border: "1px solid var(--border)", color: "var(--text-primary)", background: "var(--bg-raised)" }}>
+                📞 {contact.phoneNumber}
+              </a>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -135,7 +187,7 @@ export default function ReservationForm({ slug, type }: { slug: string; type: Li
     <div className="min-h-screen px-4 md:px-16 py-12 max-w-2xl mx-auto">
       <p className="text-xs uppercase tracking-widest mb-1 font-semibold" style={{ color: "var(--accent)" }}>{listing.type.replace("-", " ").toUpperCase()}</p>
       <h1 className="text-3xl font-bold uppercase mb-1" style={{ fontFamily: "var(--font-heading)", color: "var(--text-primary)" }}>{listing.name}</h1>
-      <p className="text-sm mb-8" style={{ color: "var(--text-muted)" }}>Release: {new Date(listing.releaseDate).toLocaleDateString()}</p>
+      <p className="text-sm mb-8" style={{ color: "var(--text-muted)" }}>Release: {fmtRelease(listing)}</p>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Buyer info */}
@@ -151,16 +203,47 @@ export default function ReservationForm({ slug, type }: { slug: string; type: Li
           <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-faint)" }}>Order</p>
 
           {type === "pahulugan" ? (
-            <div className="space-y-3">
-              <select required value={pahItem.bloodline} onChange={(e) => setPahItem({ ...pahItem, bloodline: e.target.value })} className={inputCls} style={inputStyle}>
-                <option value="">Select Bloodline *</option>
-                {openBloodlines.map((b) => <option key={b.name} value={b.name}>{b.name}</option>)}
-              </select>
-              <select required value={pahItem.category} onChange={(e) => setPahItem({ ...pahItem, category: e.target.value })} className={inputCls} style={inputStyle}>
-                <option value="">Select Type *</option>
-                {listing.prices.map((p) => <option key={p.category} value={p.category}>{p.category} — {fmt(p.amount)}</option>)}
-              </select>
-              <input type="number" min={1} required value={pahItem.qty} onChange={(e) => setPahItem({ ...pahItem, qty: +e.target.value })} className={inputCls} style={inputStyle} placeholder="Quantity" />
+            <div className="space-y-2">
+              {pahRows.map((row, i) => (
+                <div key={i} className="rounded-lg p-3 space-y-2" style={{ background: "var(--bg-raised)", border: "1px solid var(--border)" }}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium" style={{ color: "var(--text-faint)" }}>Item {i + 1}</span>
+                    {pahRows.length > 1 && (
+                      <button type="button" onClick={() => setPahRows(pahRows.filter((_, j) => j !== i))}
+                        className="p-1 rounded hover:opacity-70" style={{ color: "var(--danger)" }}>
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                  <select required value={row.bloodline}
+                    onChange={(e) => setPahRows(pahRows.map((r, j) => j === i ? { ...r, bloodline: e.target.value } : r))}
+                    className={inputCls} style={inputStyle}>
+                    <option value="">Select Bloodline *</option>
+                    {openBloodlines.map((b) => <option key={b.name} value={b.name}>{b.name}</option>)}
+                  </select>
+                  <div className="flex gap-2">
+                    <select required value={row.category}
+                      onChange={(e) => setPahRows(pahRows.map((r, j) => j === i ? { ...r, category: e.target.value } : r))}
+                      className={`flex-1 ${inputCls}`} style={inputStyle}>
+                      <option value="">Select Type *</option>
+                      {listing.prices.map((p) => <option key={p.category} value={p.category}>{p.category} — {fmt(p.amount)}</option>)}
+                    </select>
+                    <input type="number" min={1} required value={row.qty}
+                      onChange={(e) => setPahRows(pahRows.map((r, j) => j === i ? { ...r, qty: +e.target.value } : r))}
+                      className="rounded-lg px-3 py-2.5 text-sm outline-none" style={{ ...inputStyle, width: 80 }} placeholder="Qty" />
+                  </div>
+                  {row.category && (
+                    <p className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                      {row.qty} × {fmt(listing.prices.find((p) => p.category === row.category)?.amount ?? 0)} = {fmt(row.qty * (listing.prices.find((p) => p.category === row.category)?.amount ?? 0))}
+                    </p>
+                  )}
+                </div>
+              ))}
+              <button type="button" onClick={() => setPahRows([...pahRows, { bloodline: "", category: "", qty: 1 }])}
+                className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg w-full justify-center transition-all"
+                style={{ border: "1px solid var(--border)", color: "var(--accent)", background: "var(--bg-raised)" }}>
+                <Plus size={13} /> Add Another Bloodline
+              </button>
             </div>
           ) : (
             <div className="space-y-2">

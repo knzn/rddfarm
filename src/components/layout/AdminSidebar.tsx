@@ -10,17 +10,22 @@ import {
   DollarSign,
   ShoppingCart,
   Users,
+  Settings,
+  Image,
   LogOut,
 } from "lucide-react";
 
 const NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/upload", label: "Upload", icon: Upload },
+  { href: "/admin/media", label: "Manage Media", icon: Image },
   { href: "/admin/reservations", label: "Reservations", icon: BookOpen },
   { href: "/admin/breeding", label: "Breeding", icon: Dumbbell },
   { href: "/admin/expenses", label: "Expenses", icon: DollarSign },
   { href: "/admin/sales", label: "Sales", icon: ShoppingCart },
   { href: "/admin/workers", label: "Workers", icon: Users },
+  { href: "/admin/jumbotron", label: "Jumbotron", icon: Image, exact: false },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 export default function AdminSidebar() {

@@ -6,7 +6,7 @@ import PhotoCard from "@/components/media/PhotoCard";
 import VideoPlayer from "@/components/media/VideoPlayer";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
-interface Media { _id: string; title: string; url: string; thumbnail?: string; type: "video" | "photo"; categories: string[]; duration?: number; createdAt: string }
+interface Media { _id: string; title: string; url: string; thumbnail?: string; type: "video" | "photo"; categories: { slug: string; label: string }[]; duration?: number; createdAt: string }
 interface Category { slug: string; label: string }
 
 export default function BreedingPage() {
@@ -28,7 +28,7 @@ export default function BreedingPage() {
     setActiveCats((prev) => prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]);
   }
 
-  const filtered = activeCats.length ? items.filter((v) => v.categories.some((c) => activeCats.includes(c))) : items;
+  const filtered = activeCats.length ? items.filter((v) => v.categories.some((c) => activeCats.includes(c.slug))) : items;
   const photos = filtered.filter((i) => i.type === "photo");
 
   return (

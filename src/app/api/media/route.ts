@@ -14,9 +14,11 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get("limit") ?? "20"), 50);
     const cursor = searchParams.get("cursor");
 
+    const featured = searchParams.get("featured");
     const filter: Record<string, unknown> = {};
     if (page) filter.page = page;
     if (category) filter.categories = { $in: [category] };
+    if (featured === "true") filter.featured = true;
     if (cursor) filter._id = { $lt: new mongoose.Types.ObjectId(cursor) };
 
     const items = await Media.find(filter)

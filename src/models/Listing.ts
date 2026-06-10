@@ -15,7 +15,9 @@ export interface IListing extends Document {
   name: string;
   slug: string;
   startDate: Date | null;
-  releaseDate: Date;
+  releaseMonthStart: number;
+  releaseMonthEnd: number;
+  releaseYear: number;
   bloodlines: IBloodline[];
   prices: IPrice[];
   isDone: boolean;
@@ -29,7 +31,9 @@ const ListingSchema = new Schema<IListing>(
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
     startDate: { type: Date, default: null },
-    releaseDate: { type: Date, required: true },
+    releaseMonthStart: { type: Number, required: true, min: 1, max: 12 },
+    releaseMonthEnd: { type: Number, required: true, min: 1, max: 12 },
+    releaseYear: { type: Number, required: true },
     bloodlines: [
       {
         name: { type: String, required: true },

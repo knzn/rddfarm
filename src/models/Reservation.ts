@@ -12,6 +12,13 @@ export interface IPaymentScheduleEntry {
   amount: number;
 }
 
+export interface IPaymentEntry {
+  _id?: Types.ObjectId;
+  amount: number;
+  note?: string;
+  paidAt: Date;
+}
+
 export interface IReservation extends Document {
   listingId: Types.ObjectId;
   listingType: "pahulugan" | "months-old" | "day-old";
@@ -33,6 +40,7 @@ export interface IReservation extends Document {
   monthlyAmount: number | null;
   paymentSchedule: IPaymentScheduleEntry[] | null;
 
+  payments: IPaymentEntry[];
   isConfirmed: boolean;
   publicUrl: string;
   messengerUrl: string;
@@ -70,6 +78,10 @@ const ReservationSchema = new Schema<IReservation>(
     monthlyAmount: { type: Number, default: null },
     paymentSchedule: { type: [{ dueDate: Date, amount: Number }], default: null },
 
+    payments: {
+      type: [{ amount: Number, note: String, paidAt: { type: Date, default: Date.now } }],
+      default: [],
+    },
     isConfirmed: { type: Boolean, default: false },
     publicUrl: { type: String, default: "" },
     messengerUrl: { type: String, default: "" },
