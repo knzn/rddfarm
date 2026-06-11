@@ -140,7 +140,7 @@ export default function ReservationsAdminClient() {
         <div className="rounded-[12px] p-5 mb-6 border" style={{ background: "var(--bg-surface)", borderColor: "var(--border)" }}>
           <h2 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>{editListing ? "Edit Listing" : `New ${tab} Listing`}</h2>
           <form onSubmit={saveListing} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <input placeholder="Listing Name *" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputCls} style={inputStyle} />
               <select value={form.releaseYear} onChange={(e) => setForm({ ...form, releaseYear: e.target.value })} className={inputCls} style={inputStyle}>
                 {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
@@ -148,12 +148,12 @@ export default function ReservationsAdminClient() {
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--text-faint)" }}>Release Period</p>
-              <div className="flex items-center gap-2">
-                <select value={form.releaseMonthStart} onChange={(e) => setForm({ ...form, releaseMonthStart: e.target.value })} className="flex-1 rounded-lg px-3 py-2 text-sm outline-none" style={inputStyle}>
+              <div className="flex flex-wrap items-center gap-2">
+                <select value={form.releaseMonthStart} onChange={(e) => setForm({ ...form, releaseMonthStart: e.target.value })} className="flex-1 min-w-[120px] rounded-lg px-3 py-2 text-sm outline-none" style={inputStyle}>
                   {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
                 </select>
                 <span className="text-sm" style={{ color: "var(--text-faint)" }}>to</span>
-                <select value={form.releaseMonthEnd} onChange={(e) => setForm({ ...form, releaseMonthEnd: e.target.value })} className="flex-1 rounded-lg px-3 py-2 text-sm outline-none" style={inputStyle}>
+                <select value={form.releaseMonthEnd} onChange={(e) => setForm({ ...form, releaseMonthEnd: e.target.value })} className="flex-1 min-w-[120px] rounded-lg px-3 py-2 text-sm outline-none" style={inputStyle}>
                   {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
                 </select>
               </div>

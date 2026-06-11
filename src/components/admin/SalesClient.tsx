@@ -120,14 +120,14 @@ export default function SalesClient() {
     <div className="space-y-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold uppercase tracking-wide" style={{ fontFamily: "var(--font-heading)", color: "var(--text-primary)" }}>Sales</h1>
           <p className="text-xs mt-0.5" style={{ color: "var(--text-faint)" }}>
             {MONTHS[month - 1]} {year} · {sales.length} record{sales.length !== 1 ? "s" : ""}{autoCount > 0 ? ` · ${autoCount} from reservations` : ""}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           <select value={month} onChange={(e) => setMonth(+e.target.value)} className="rounded-lg px-3 py-2 text-sm outline-none" style={inputStyle}>
             {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
           </select>
@@ -238,7 +238,9 @@ export default function SalesClient() {
           <p style={{ color: "var(--text-faint)" }}>No sales for {MONTHS[month - 1]} {year}</p>
         </div>
       ) : (
-        <div className="rounded-[14px] overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+        <>
+        {/* ── Desktop table ── */}
+        <div className="hidden md:block rounded-[14px] overflow-hidden" style={{ border: "1px solid var(--border)" }}>
           {/* Table header */}
           <div className="grid text-[11px] font-semibold uppercase tracking-widest px-5 py-3"
             style={{ background: "var(--bg-surface)", borderBottom: "1px solid var(--border)", color: "var(--text-faint)", gridTemplateColumns: "90px 100px 1fr 100px 110px 56px" }}>
@@ -295,7 +297,7 @@ export default function SalesClient() {
                   <div className="px-5 py-4 space-y-3" style={{ background: "var(--bg-raised)", borderTop: "1px solid var(--border)" }}>
 
                     {/* Buyer info + reservation link */}
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       {/* Buyer name — clickable, goes to reservation */}
                       {s.buyerName && (
                         <button
@@ -320,7 +322,7 @@ export default function SalesClient() {
                     </div>
 
                     {/* Payment breakdown */}
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       {[
                         { label: "Total",       value: fmt(s.amount),      color: "var(--success)" },
                         { label: "Down payment", value: fmt(s.downPayment), color: "var(--accent)"  },
@@ -378,6 +380,107 @@ export default function SalesClient() {
             );
           })}
         </div>
+
+        {/* ── Mobile cards ── */}
+        <div className="md:hidden space-y-2">
+          {sales.map((s) => {
+            const st = STATUS_STYLE[s.paymentStatus];
+            const typeKey = s.source === "reservation" ? (s.listingType ?? "manual") : "manual";
+            const ts = TYPE_STYLE[typeKey] ?? TYPE_STYLE.manual;
+            const isOpen = expanded === s._id;
+            return (
+              <div key={s._id} className="rounded-[12px] overflow-hidden" style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+                {/* Card header row */}
+                <div className="flex items-start gap-3 px-4 py-3 cursor-pointer" onClick={() => setExpanded(isOpen ? null : s._id)}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>{s.description}</p>
+                    {s.source === "reservation" && s.buyerName && (
+                      <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-faint)" }}>{s.buyerName}</p>
+                    )}
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md"
+                        style={{ background: ts.bg, color: ts.color }}>
+                        {s.source === "reservation" ? <Zap size={9} /> : <User size={9} />}
+                        {ts.label}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md"
+                        style={{ background: st.bg, color: st.color }}>
+                        {st.label}
+                      </span>
+                      <span className="text-[11px] font-mono" style={{ color: "var(--text-faint)" }}>
+                        {new Date(s.date).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <span className="text-base font-mono font-bold" style={{ color: "var(--success)" }}>{fmt(s.amount)}</span>
+                    <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg" style={{ color: "var(--accent)", background: "var(--accent)10" }}><Pencil size={13} /></button>
+                      <button onClick={() => handleDelete(s._id)} className="p-1.5 rounded-lg" style={{ color: "var(--danger)", background: "var(--danger)10" }}><Trash2 size={13} /></button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Expanded — reservation */}
+                {isOpen && s.source === "reservation" && (
+                  <div className="px-4 pb-4 space-y-3 border-t" style={{ borderColor: "var(--border)", background: "var(--bg-raised)" }}>
+                    <div className="pt-3 grid grid-cols-1 gap-2">
+                      {s.buyerName && (
+                        <button
+                          onClick={() => s.listingSlug && router.push(`/admin/reservations/${s.listingSlug}?r=${s.reservationId}`)}
+                          className="rounded-lg px-3 py-2 text-left"
+                          style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", cursor: s.listingSlug ? "pointer" : "default" }}>
+                          <p className="text-[10px] uppercase tracking-widest font-semibold mb-0.5 flex items-center gap-1" style={{ color: "var(--text-faint)" }}>
+                            Buyer {s.listingSlug && <ExternalLink size={9} />}
+                          </p>
+                          <p className="text-sm font-medium" style={{ color: s.listingSlug ? "var(--accent)" : "var(--text-primary)" }}>{s.buyerName}</p>
+                        </button>
+                      )}
+                      {[{ label: "Facebook", value: s.buyerFacebook }, { label: "Contact", value: s.buyerNumber }].map(({ label, value }) => value ? (
+                        <div key={label} className="rounded-lg px-3 py-2" style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+                          <p className="text-[10px] uppercase tracking-widest font-semibold mb-0.5" style={{ color: "var(--text-faint)" }}>{label}</p>
+                          <p className="text-sm" style={{ color: "var(--text-primary)" }}>{value}</p>
+                        </div>
+                      ) : null)}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: "Total", value: fmt(s.amount), color: "var(--success)" },
+                        { label: "Down", value: fmt(s.downPayment), color: "var(--accent)" },
+                        { label: "Balance", value: fmt(s.balance), color: s.balance && s.balance > 0 ? "var(--warning)" : "var(--success)" },
+                      ].map(({ label, value, color }) => (
+                        <div key={label} className="rounded-lg px-2 py-2" style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+                          <p className="text-[10px] uppercase tracking-widest font-semibold mb-0.5" style={{ color: "var(--text-faint)" }}>{label}</p>
+                          <p className="text-xs font-mono font-bold" style={{ color }}>{value}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {s.items && s.items.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: "var(--text-faint)" }}>Items</p>
+                        {s.items.map((it, idx) => (
+                          <div key={idx} className="flex items-center justify-between rounded-lg px-3 py-2"
+                            style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+                            <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{it.bloodline}</span>
+                            <span className="text-xs font-mono font-bold" style={{ color: "var(--success)" }}>{fmt(it.quantity * it.unitPrice)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Expanded — manual */}
+                {isOpen && s.source === "manual" && s.notes && (
+                  <div className="px-4 py-3 border-t" style={{ borderColor: "var(--border)", background: "var(--bg-raised)" }}>
+                    <p className="text-xs" style={{ color: "var(--text-faint)" }}>{s.notes}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        </>
       )}
     </div>
   );

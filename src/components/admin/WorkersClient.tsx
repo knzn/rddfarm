@@ -111,14 +111,14 @@ export default function WorkersClient() {
       {showAdd && (
         <div className="rounded-[12px] p-5 mb-6 border" style={{ background: "var(--bg-surface)", borderColor: "var(--border)" }}>
           <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>New Worker</p>
-          <form onSubmit={addWorker} className="grid grid-cols-2 gap-3">
+          <form onSubmit={addWorker} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input placeholder="Full Name *" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={`${inputCls} w-full`} style={inputStyle} />
             <select value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} className={`${inputCls} w-full`} style={inputStyle}>
               {POSITIONS.map((p) => <option key={p}>{p}</option>)}
             </select>
             <input type="number" placeholder="Monthly Salary *" required value={form.monthlySalary} onChange={(e) => setForm({ ...form, monthlySalary: e.target.value })} className={`${inputCls} w-full`} style={inputStyle} />
             <input type="number" placeholder="Salary Day (1–31, default 30)" value={form.salaryDay} onChange={(e) => setForm({ ...form, salaryDay: e.target.value })} className={`${inputCls} w-full`} style={inputStyle} />
-            <div className="col-span-2 flex gap-2 justify-end">
+            <div className="sm:col-span-2 flex gap-2 justify-end">
               <button type="button" onClick={() => setShowAdd(false)} className="px-4 py-2 rounded-lg text-sm" style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}>Cancel</button>
               <button type="submit" className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--accent)", color: "#fff" }}>Save</button>
             </div>

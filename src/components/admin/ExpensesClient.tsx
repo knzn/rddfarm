@@ -157,14 +157,14 @@ export default function ExpensesClient() {
     <div className="space-y-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold uppercase tracking-wide" style={{ fontFamily: "var(--font-heading)", color: "var(--text-primary)" }}>Expenses</h1>
           <p className="text-xs mt-0.5" style={{ color: "var(--text-faint)" }}>
             {MONTHS[month - 1]} {year} · {expenses.length} transaction{expenses.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           <select value={month} onChange={(e) => setMonth(+e.target.value)}
             className="rounded-lg px-3 py-2 text-sm outline-none" style={inputStyle}>
             {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
@@ -308,61 +308,73 @@ export default function ExpensesClient() {
           <p style={{ color: "var(--text-faint)" }}>No expenses for {MONTHS[month - 1]} {year}</p>
         </div>
       ) : (
-        <div className="rounded-[14px] overflow-hidden" style={{ border: "1px solid var(--border)" }}>
-          {/* Table header */}
+        <>
+        {/* Desktop table */}
+        <div className="hidden md:block rounded-[14px] overflow-hidden" style={{ border: "1px solid var(--border)" }}>
           <div className="grid text-[11px] font-semibold uppercase tracking-widest px-5 py-3"
             style={{ background: "var(--bg-surface)", borderBottom: "1px solid var(--border)", color: "var(--text-faint)", gridTemplateColumns: "90px 130px 1fr 160px 110px 56px" }}>
-            <span>Date</span>
-            <span>Category</span>
-            <span>Item / Description</span>
-            <span>Qty × Price</span>
-            <span className="text-right">Total</span>
-            <span />
+            <span>Date</span><span>Category</span><span>Item / Description</span>
+            <span>Qty × Price</span><span className="text-right">Total</span><span />
           </div>
-
           {expenses.map((exp, i) => (
-            <div key={exp._id}
-              className="grid items-center px-5 py-3.5 transition-colors"
-              style={{
-                gridTemplateColumns: "90px 130px 1fr 160px 110px 56px",
-                background: i % 2 === 0 ? "var(--bg-base)" : "var(--bg-surface)",
-                borderBottom: i < expenses.length - 1 ? "1px solid var(--border)" : "none",
-              }}>
+            <div key={exp._id} className="grid items-center px-5 py-3.5 transition-colors"
+              style={{ gridTemplateColumns: "90px 130px 1fr 160px 110px 56px", background: i % 2 === 0 ? "var(--bg-base)" : "var(--bg-surface)", borderBottom: i < expenses.length - 1 ? "1px solid var(--border)" : "none" }}>
               <span className="text-xs font-mono" style={{ color: "var(--text-faint)" }}>
                 {new Date(exp.date).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}
               </span>
               <span><CategoryPill cat={exp.category} /></span>
               <div>
-                <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                  {exp.type === "unit" ? exp.name : exp.description}
-                </p>
+                <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{exp.type === "unit" ? exp.name : exp.description}</p>
                 {exp.notes && <p className="text-xs mt-0.5" style={{ color: "var(--text-faint)" }}>{exp.notes}</p>}
               </div>
               <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
-                {exp.type === "unit" && exp.quantity != null
-                  ? `${exp.quantity} ${exp.unit ?? ""} × ${fmt(exp.pricePerUnit)}`
-                  : "—"}
+                {exp.type === "unit" && exp.quantity != null ? `${exp.quantity} ${exp.unit ?? ""} × ${fmt(exp.pricePerUnit)}` : "—"}
               </span>
-              <span className="text-sm font-mono font-bold text-right" style={{ color: "var(--danger)" }}>
-                {fmt(exp.effectiveAmount)}
-              </span>
+              <span className="text-sm font-mono font-bold text-right" style={{ color: "var(--danger)" }}>{fmt(exp.effectiveAmount)}</span>
               <div className="flex gap-1.5 justify-end">
-                {!exp.locked && (
-                  <>
-                    <button onClick={() => openEdit(exp)} className="p-1.5 rounded-lg transition-colors"
-                      style={{ color: "var(--accent)", background: "var(--accent)10" }}>
-                      <Pencil size={13} />
-                    </button>
-                    <button onClick={() => handleDelete(exp._id)} className="p-1.5 rounded-lg transition-colors"
-                      style={{ color: "var(--danger)", background: "var(--danger)10" }}>
-                      <Trash2 size={13} />
-                    </button>
-                  </>
-                )}
+                {!exp.locked && (<>
+                  <button onClick={() => openEdit(exp)} className="p-1.5 rounded-lg" style={{ color: "var(--accent)", background: "var(--accent)10" }}><Pencil size={13} /></button>
+                  <button onClick={() => handleDelete(exp._id)} className="p-1.5 rounded-lg" style={{ color: "var(--danger)", background: "var(--danger)10" }}><Trash2 size={13} /></button>
+                </>)}
               </div>
             </div>
           ))}
         </div>
+
+        {/* Mobile cards */}
+        <div className="md:hidden space-y-2">
+          {expenses.map((exp) => (
+            <div key={exp._id} className="rounded-[12px] p-4" style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1 mr-3">
+                  <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                    {exp.type === "unit" ? exp.name : exp.description}
+                  </p>
+                  {exp.notes && <p className="text-xs mt-0.5" style={{ color: "var(--text-faint)" }}>{exp.notes}</p>}
+                </div>
+                <span className="text-base font-bold font-mono" style={{ color: "var(--danger)" }}>{fmt(exp.effectiveAmount)}</span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <CategoryPill cat={exp.category} />
+                <span className="text-xs font-mono" style={{ color: "var(--text-faint)" }}>
+                  {new Date(exp.date).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
+                </span>
+                {exp.type === "unit" && exp.quantity != null && (
+                  <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                    {exp.quantity} {exp.unit ?? ""} × {fmt(exp.pricePerUnit)}
+                  </span>
+                )}
+              </div>
+              {!exp.locked && (
+                <div className="flex gap-2 mt-3 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
+                  <button onClick={() => openEdit(exp)} className="flex-1 py-1.5 rounded-lg text-xs font-medium" style={{ color: "var(--accent)", border: "1px solid var(--accent)40" }}>Edit</button>
+                  <button onClick={() => handleDelete(exp._id)} className="flex-1 py-1.5 rounded-lg text-xs font-medium" style={{ color: "var(--danger)", border: "1px solid var(--danger)40" }}>Delete</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        </>
       )}
     </div>
   );

@@ -346,9 +346,8 @@ function MatingsTab({ season }: { season: Season | null }) {
             const hasMarkings = m.hens.some((h) => h.marking);
             const color = hasMarkings ? "var(--success)" : "var(--accent)";
             return (
-            <div key={m._id} className="rounded-[12px] overflow-hidden flex flex-col"
+            <div key={m._id} className="rounded-[12px] overflow-hidden flex flex-col w-full md:w-[300px]"
               style={{
-                width: 300,
                 background: "var(--bg-surface)",
                 border: `1px solid ${editingId === m._id ? color : "var(--border)"}`,
                 borderTop: `3px solid ${color}`,
