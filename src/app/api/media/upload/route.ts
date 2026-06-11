@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     const folder = folderHint || (contentType.startsWith("video/") ? "portfolio/videos" : "portfolio/photos");
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/\.[^.]+$/, "");
 
-    let buffer = Buffer.from(await file.arrayBuffer());
+    let buffer: Buffer = Buffer.from(await file.arrayBuffer() as ArrayBuffer);
     let uploadContentType = contentType;
     let ext = contentType === "video/mp4" ? "mp4" : "webp";
 
