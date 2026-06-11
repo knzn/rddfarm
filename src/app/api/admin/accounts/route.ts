@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import dbConnect from "@/lib/db";
+import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 import { verifyAccessToken } from "@/lib/auth";
 
@@ -12,7 +12,7 @@ function getUser(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   if (!getUser(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  await dbConnect();
+  await connectDB();
   const users = await User.find({}, { passwordHash: 0 }).sort({ createdAt: 1 });
   return NextResponse.json({ data: users });
 }
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   const { email, password } = await req.json();
   if (!email || !password) return NextResponse.json({ error: "Email and password required" }, { status: 400 });
   if (password.length < 6) return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
-  await dbConnect();
+  await connectDB();
   const existing = await User.findOne({ email: email.toLowerCase() });
   if (existing) return NextResponse.json({ error: "Email already in use" }, { status: 409 });
   const passwordHash = await bcrypt.hash(password, 10);
