@@ -38,8 +38,10 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (!season) return NextResponse.json({ error: "Season not found" }, { status: 404 });
 
     // validate: henNames.length must equal hens array length
-    const hens = (body.henNames as string[])?.map((name: string) => ({
+    const henGroups: (string | null)[] = body.henGroups ?? [];
+    const hens = (body.henNames as string[])?.map((name: string, idx: number) => ({
       henName: name,
+      group: henGroups[idx] || null,
       marking: null,
       previousMarking: null,
       photo: null,

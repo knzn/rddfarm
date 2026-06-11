@@ -41,7 +41,7 @@ export default function PhotosPage() {
   useEffect(() => {
     Promise.all([
       fetch("/api/media?page=photos&limit=200").then((r) => r.json()),
-      fetch("/api/categories").then((r) => r.json()),
+      fetch("/api/categories?page=photos").then((r) => r.json()),
     ]).then(([m, c]) => { setPhotos(m.data ?? []); setCategories(c.data ?? []); setLoading(false); });
   }, []);
 

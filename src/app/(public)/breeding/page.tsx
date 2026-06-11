@@ -20,7 +20,7 @@ export default function BreedingPage() {
   useEffect(() => {
     Promise.all([
       fetch("/api/media?page=breeding&limit=200").then((r) => r.json()),
-      fetch("/api/categories").then((r) => r.json()),
+      fetch("/api/categories?page=breeding").then((r) => r.json()),
     ]).then(([m, c]) => { setItems(m.data ?? []); setCategories(c.data ?? []); setLoading(false); });
   }, []);
 
@@ -58,7 +58,7 @@ export default function BreedingPage() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filtered.map((item) =>
             item.type === "video"
-              ? <VideoCard key={item._id} title={item.title} thumbnail={item.thumbnail} duration={item.duration} categories={item.categories} createdAt={item.createdAt} onClick={() => setPlayingVideo(item)} />
+              ? <VideoCard key={item._id} title={item.title} thumbnail={item.thumbnail} duration={item.duration} categories={item.categories} onClick={() => setPlayingVideo(item)} />
               : <PhotoCard key={item._id} url={item.url} title={item.title} onClick={() => setLightboxIdx(photos.indexOf(item))} />
           )}
         </div>

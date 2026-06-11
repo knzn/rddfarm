@@ -1,11 +1,50 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Upload, X, CheckCircle, AlertCircle } from "lucide-react";
+import { Upload, X, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
 
 const PAGE_OPTIONS = ["videos", "breeding", "photos"] as const;
+type PageOption = typeof PAGE_OPTIONS[number];
+const THUMB_WIDTH = 640;
+const THUMB_HEIGHT = 360;
 
 interface Category { _id: string; slug: string; label: string }
+
+function captureFrame(videoFile: File, seekTo = 1): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.muted = true;
+    video.playsInline = true;
+    const url = URL.createObjectURL(videoFile);
+    video.src = url;
+
+    video.addEventListener("loadedmetadata", () => {
+      video.currentTime = Math.min(seekTo, video.duration * 0.1);
+    });
+
+    video.addEventListener("seeked", () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = THUMB_WIDTH;
+      canvas.height = THUMB_HEIGHT;
+      const ctx = canvas.getContext("2d")!;
+      // letterbox / fill to fixed 16:9
+      const vr = video.videoWidth / video.videoHeight;
+      const cr = THUMB_WIDTH / THUMB_HEIGHT;
+      let sx = 0, sy = 0, sw = video.videoWidth, sh = video.videoHeight;
+      if (vr > cr) { sw = video.videoHeight * cr; sx = (video.videoWidth - sw) / 2; }
+      else { sh = video.videoWidth / cr; sy = (video.videoHeight - sh) / 2; }
+      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, THUMB_WIDTH, THUMB_HEIGHT);
+      URL.revokeObjectURL(url);
+      canvas.toBlob((blob) => {
+        if (!blob) return reject(new Error("Canvas toBlob failed"));
+        resolve(new File([blob], "thumbnail.jpg", { type: "image/jpeg" }));
+      }, "image/jpeg", 0.88);
+    });
+
+    video.addEventListener("error", () => { URL.revokeObjectURL(url); reject(new Error("Video load error")); });
+  });
+}
 
 export default function UploadClient() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -13,9 +52,11 @@ export default function UploadClient() {
   const [newCat, setNewCat] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [thumb, setThumb] = useState<File | null>(null);
+  const [thumbPreview, setThumbPreview] = useState<string | null>(null);
+  const [thumbGenerating, setThumbGenerating] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [page, setPage] = useState<typeof PAGE_OPTIONS[number]>("videos");
+  const [page, setPage] = useState<PageOption | null>(null);
   const [featured, setFeatured] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
@@ -24,11 +65,25 @@ export default function UploadClient() {
   const thumbRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (!page) { setCategories([]); setSelectedCats([]); return; }
     fetch(`/api/categories?page=${page}`)
       .then((r) => r.json())
       .then((j) => setCategories(j.data ?? []));
     setSelectedCats([]);
   }, [page]);
+
+  async function autoGenerateThumb(videoFile: File) {
+    setThumbGenerating(true);
+    try {
+      const generated = await captureFrame(videoFile);
+      setThumb(generated);
+      setThumbPreview(URL.createObjectURL(generated));
+    } catch {
+      // silently fail — user can upload manually
+    } finally {
+      setThumbGenerating(false);
+    }
+  }
 
   function toggleCat(slug: string) {
     setSelectedCats((prev) =>
@@ -37,7 +92,7 @@ export default function UploadClient() {
   }
 
   async function addCategory() {
-    if (!newCat.trim()) return;
+    if (!newCat.trim() || !page) return;
     const res = await fetch("/api/categories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -53,7 +108,7 @@ export default function UploadClient() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!file) return;
+    if (!file || !page) return;
     setStatus("uploading");
     setProgress(0);
     setErrorMsg("");
@@ -118,7 +173,8 @@ export default function UploadClient() {
 
       setProgress(100);
       setStatus("done");
-      setFile(null); setThumb(null); setTitle(""); setDescription(""); setSelectedCats([]);
+      if (thumbPreview) URL.revokeObjectURL(thumbPreview);
+      setFile(null); setThumb(null); setThumbPreview(null); setTitle(""); setDescription(""); setSelectedCats([]); setPage(null);
       if (fileRef.current) fileRef.current.value = "";
       if (thumbRef.current) thumbRef.current.value = "";
     } catch (err) {
@@ -147,8 +203,12 @@ export default function UploadClient() {
           <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
             File <span style={{ color: "var(--danger)" }}>*</span>
           </label>
-          <input ref={fileRef} type="file" accept="video/mp4,image/*"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          <input ref={fileRef} type="file" accept="video/mp4,video/mov,video/quicktime,image/*"
+            onChange={(e) => {
+              const f = e.target.files?.[0] ?? null;
+              setFile(f);
+              if (f?.type.startsWith("video")) autoGenerateThumb(f);
+            }}
             className={inputCls} style={inputStyle} required />
           {file && <p className="text-xs mt-1" style={{ color: "var(--text-faint)" }}>{file.name} ({(file.size / 1024 / 1024).toFixed(1)} MB)</p>}
         </div>
@@ -157,11 +217,47 @@ export default function UploadClient() {
         {file?.type.startsWith("video") && (
           <div>
             <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
-              Thumbnail (optional)
+              Thumbnail
             </label>
-            <input ref={thumbRef} type="file" accept="image/*"
-              onChange={(e) => setThumb(e.target.files?.[0] ?? null)}
-              className={inputCls} style={inputStyle} />
+
+            {thumbGenerating ? (
+              <div className="flex items-center gap-2 text-sm" style={{ color: "var(--text-muted)" }}>
+                <RefreshCw size={14} className="animate-spin" /> Generating thumbnail...
+              </div>
+            ) : thumbPreview ? (
+              <div className="space-y-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={thumbPreview} alt="Thumbnail preview"
+                  className="rounded-lg object-cover"
+                  style={{ width: THUMB_WIDTH / 2, height: THUMB_HEIGHT / 2, maxWidth: "100%", border: "1px solid var(--border)" }} />
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => file && autoGenerateThumb(file)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs"
+                    style={{ background: "var(--bg-raised)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>
+                    <RefreshCw size={12} /> Regenerate
+                  </button>
+                  <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs cursor-pointer"
+                    style={{ background: "var(--bg-raised)", color: "var(--accent)", border: "1px solid var(--border)" }}>
+                    <Upload size={12} /> Upload custom
+                    <input ref={thumbRef} type="file" accept="image/*" className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) { setThumb(f); setThumbPreview(URL.createObjectURL(f)); }
+                      }} />
+                  </label>
+                </div>
+              </div>
+            ) : (
+              <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs cursor-pointer w-fit"
+                style={{ background: "var(--bg-raised)", color: "var(--accent)", border: "1px solid var(--border)" }}>
+                <Upload size={12} /> Upload thumbnail manually
+                <input ref={thumbRef} type="file" accept="image/*" className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) { setThumb(f); setThumbPreview(URL.createObjectURL(f)); }
+                  }} />
+              </label>
+            )}
           </div>
         )}
 
@@ -182,11 +278,34 @@ export default function UploadClient() {
 
         {/* Page target */}
         <div>
-          <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>Page</label>
-          <select value={page} onChange={(e) => setPage(e.target.value as typeof PAGE_OPTIONS[number])}
-            className={inputCls} style={inputStyle}>
-            {PAGE_OPTIONS.map((p) => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
-          </select>
+          <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
+            Page <span style={{ color: "var(--danger)" }}>*</span>
+          </label>
+          <div className="flex gap-2">
+            {PAGE_OPTIONS.map((p) => {
+              const active = page === p;
+              const colors: Record<PageOption, string> = {
+                videos: "#3B82F6",
+                breeding: "#10B981",
+                photos: "#F59E0B",
+              };
+              return (
+                <button key={p} type="button" onClick={() => setPage(p)}
+                  className="flex-1 py-2.5 rounded-lg text-sm font-semibold uppercase tracking-wide transition-all"
+                  style={{
+                    background: active ? colors[p] : "var(--bg-raised)",
+                    color: active ? "#fff" : "var(--text-muted)",
+                    border: `2px solid ${active ? colors[p] : "var(--border)"}`,
+                    fontFamily: "var(--font-heading)",
+                  }}>
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                </button>
+              );
+            })}
+          </div>
+          {!page && (
+            <p className="text-xs mt-1.5" style={{ color: "var(--danger)" }}>Choose a page before uploading</p>
+          )}
         </div>
 
         {/* Featured (jumbotron) — photos only */}
@@ -254,7 +373,7 @@ export default function UploadClient() {
           </div>
         )}
 
-        <button type="submit" disabled={status === "uploading" || !file}
+        <button type="submit" disabled={status === "uploading" || !file || !page}
           className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-sm transition-all disabled:opacity-50"
           style={{ background: "var(--accent)", color: "#fff" }}>
           <Upload size={16} />

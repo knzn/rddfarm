@@ -6,6 +6,7 @@ export interface MatingInput {
   id: string;
   maleName: string;
   henNames: string[];
+  henGroups?: (string | null)[];
   sameMarking: boolean | null;
   mandatoryMarking: string | null;
 }
@@ -103,18 +104,11 @@ function buildGroupedPool(): GroupedPool {
   return pool;
 }
 
-function isComboMark(combo: string): boolean {
-  return combo.includes("-");
-}
-
 function pickFromPool(pool: string[], used: Set<string>): string | null {
-  // prefer combo marks first
-  const combos = pool.filter((c) => isComboMark(c) && !used.has(c));
-  if (combos.length) return combos[0];
-  // fall back to single-part
-  const singles = pool.filter((c) => !isComboMark(c) && !used.has(c));
-  if (singles.length) return singles[0];
-  return null;
+  const available = pool.filter((c) => !used.has(c));
+  // shortest combo first: 2-part before 3-part before 4-part, etc.
+  available.sort((a, b) => a.split("-").length - b.split("-").length);
+  return available[0] ?? null;
 }
 
 function getNoseGroupForCombo(combo: string): NoseGroup {
@@ -178,12 +172,21 @@ export function generateMarkings(
       usedCombos.add(combo);
       for (const name of m.henNames) hens.push({ henName: name, marking: combo });
     } else {
-      // each hen unique
-      for (const name of m.henNames) {
-        const combo = pickFromPool(groupPool, usedCombos);
-        if (!combo) throw new Error(`Pool exhausted for group ${group} (mating ${m.maleName})`);
-        usedCombos.add(combo);
-        hens.push({ henName: name, marking: combo });
+      // diff marking — hens with the same group label share one combo, ungrouped hens get unique
+      const groupMarkingMap = new Map<string, string>(); // group label → assigned combo
+      for (let i = 0; i < m.henNames.length; i++) {
+        const name = m.henNames[i];
+        const grpLabel = m.henGroups?.[i] ?? null;
+        if (grpLabel && groupMarkingMap.has(grpLabel)) {
+          // sister — reuse same combo as the group leader
+          hens.push({ henName: name, marking: groupMarkingMap.get(grpLabel)! });
+        } else {
+          const combo = pickFromPool(groupPool, usedCombos);
+          if (!combo) throw new Error(`Pool exhausted for group ${group} (mating ${m.maleName})`);
+          usedCombos.add(combo);
+          hens.push({ henName: name, marking: combo });
+          if (grpLabel) groupMarkingMap.set(grpLabel, combo);
+        }
       }
     }
 
@@ -219,6 +222,23 @@ export function generateMarkings(
       group = best;
     }
     results.push(assignMating(m, group));
+  }
+
+  // ── Duplicate scan ────────────────────────────────────────────────────────
+  // Each unique combo must appear in at most one mating (same-marking within
+  // a mating is fine — sisters share intentionally). Cross-mating duplicates
+  // would mean two different stags share a marking combo, which is invalid.
+  const seenCombos = new Map<string, string>(); // combo → maleName
+  for (const r of results) {
+    const uniqueInMating = new Set(r.hens.map((h) => h.marking));
+    for (const combo of uniqueInMating) {
+      if (seenCombos.has(combo)) {
+        throw new Error(
+          `Duplicate marking "${combo}" assigned to both "${seenCombos.get(combo)}" and "${r.maleName}". Pool may be exhausted.`
+        );
+      }
+      seenCombos.set(combo, r.maleName);
+    }
   }
 
   return results;

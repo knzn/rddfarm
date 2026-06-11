@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Check, X, ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 
 interface Listing {
@@ -32,6 +32,7 @@ function fmt(n: number | null | undefined) { return `₱${(n ?? 0).toLocaleStrin
 
 export default function ListingReservationsClient({ slug }: { slug: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [listing, setListing] = useState<Listing | null>(null);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +50,12 @@ export default function ListingReservationsClient({ slug }: { slug: string }) {
       setListing(lj.data ?? null);
       setReservations(rj.data ?? []);
       setLoading(false);
+      // auto-expand if ?r=reservationId in URL
+      const target = searchParams.get("r");
+      if (target) {
+        setExpanded(target);
+        setTimeout(() => document.getElementById(`r-${target}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
+      }
     }
     load();
   }, [slug]);
@@ -61,6 +68,15 @@ export default function ListingReservationsClient({ slug }: { slug: string }) {
   async function rejectReservation(id: string) {
     if (!confirm("Reject and delete this reservation?")) return;
     await fetch(`/api/admin/reservations/${id}/reject`, { method: "PATCH" });
+    setReservations((prev) => prev.filter((r) => r._id !== id));
+  }
+
+  async function deleteReservation(id: string, isConfirmed: boolean) {
+    const msg = isConfirmed
+      ? "This reservation is confirmed. Delete it and its sale record?"
+      : "Delete this reservation?";
+    if (!confirm(msg)) return;
+    await fetch(`/api/admin/reservations/${id}`, { method: "DELETE" });
     setReservations((prev) => prev.filter((r) => r._id !== id));
   }
 
@@ -139,7 +155,7 @@ export default function ListingReservationsClient({ slug }: { slug: string }) {
               <div className="space-y-2">
                 {pending.map((r) => (
                   <ReservationCard key={r._id} r={r} expanded={expanded} setExpanded={setExpanded}
-                    onConfirm={confirmReservation} onReject={rejectReservation} onUpdate={updateReservation} />
+                    onConfirm={confirmReservation} onReject={rejectReservation} onUpdate={updateReservation} onDelete={deleteReservation} />
                 ))}
               </div>
             </div>
@@ -153,7 +169,7 @@ export default function ListingReservationsClient({ slug }: { slug: string }) {
               <div className="space-y-2">
                 {confirmed.map((r) => (
                   <ReservationCard key={r._id} r={r} expanded={expanded} setExpanded={setExpanded}
-                    onConfirm={confirmReservation} onReject={rejectReservation} onUpdate={updateReservation} />
+                    onConfirm={confirmReservation} onReject={rejectReservation} onUpdate={updateReservation} onDelete={deleteReservation} />
                 ))}
               </div>
             </div>
@@ -168,13 +184,14 @@ export default function ListingReservationsClient({ slug }: { slug: string }) {
   );
 }
 
-function ReservationCard({ r, expanded, setExpanded, onConfirm, onReject, onUpdate }: {
+function ReservationCard({ r, expanded, setExpanded, onConfirm, onReject, onUpdate, onDelete }: {
   r: Reservation;
   expanded: string | null;
   setExpanded: (id: string | null) => void;
   onConfirm: (id: string) => void;
   onReject: (id: string) => void;
   onUpdate: (r: Reservation) => void;
+  onDelete: (id: string, isConfirmed: boolean) => void;
 }) {
   const isOpen = expanded === r._id;
   const paymentsSum = (r.payments ?? []).reduce((s, p) => s + p.amount, 0);
@@ -221,7 +238,7 @@ function ReservationCard({ r, expanded, setExpanded, onConfirm, onReject, onUpda
   const inputStyle = { background: "var(--bg-raised)", border: "1px solid var(--border)", color: "var(--text-primary)" };
 
   return (
-    <div className="rounded-[12px] border overflow-hidden" style={{ background: "var(--bg-surface)", borderColor: "var(--border)" }}>
+    <div id={`r-${r._id}`} className="rounded-[12px] border overflow-hidden" style={{ background: "var(--bg-surface)", borderColor: "var(--border)" }}>
       <div className="flex items-center justify-between px-5 py-4 cursor-pointer" onClick={() => setExpanded(isOpen ? null : r._id)}>
         <div>
           <div className="flex items-center gap-2">
@@ -255,6 +272,10 @@ function ReservationCard({ r, expanded, setExpanded, onConfirm, onReject, onUpda
               </button>
             </>
           )}
+          <button onClick={(e) => { e.stopPropagation(); onDelete(r._id, r.isConfirmed); }}
+            className="p-1.5 rounded-lg" title="Delete reservation" style={{ color: "var(--danger)" }}>
+            <Trash2 size={14} />
+          </button>
           {isOpen ? <ChevronUp size={16} style={{ color: "var(--text-muted)" }} /> : <ChevronDown size={16} style={{ color: "var(--text-muted)" }} />}
         </div>
       </div>

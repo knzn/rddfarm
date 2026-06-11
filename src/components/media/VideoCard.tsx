@@ -4,10 +4,10 @@ import { Play } from "lucide-react";
 
 interface VideoCardProps {
   title: string;
+  description?: string;
   thumbnail?: string;
   duration?: number;
   categories: { slug: string; label: string }[];
-  createdAt: string;
   onClick: () => void;
 }
 
@@ -18,7 +18,7 @@ function fmtDuration(s?: number) {
   return `${m}:${sec}`;
 }
 
-export default function VideoCard({ title, thumbnail, duration, categories, createdAt, onClick }: VideoCardProps) {
+export default function VideoCard({ title, description, thumbnail, duration, categories, onClick }: VideoCardProps) {
   return (
     <div onClick={onClick} className="rounded-[12px] overflow-hidden border cursor-pointer transition-all hover:-translate-y-1 group"
       style={{ background: "var(--bg-surface)", borderColor: "var(--border)" }}>
@@ -40,15 +40,17 @@ export default function VideoCard({ title, thumbnail, duration, categories, crea
           </span>
         )}
       </div>
-      {/* Info */}
-      <div className="p-3">
-        <p className="text-sm font-medium line-clamp-2 leading-snug mb-2" style={{ color: "var(--text-primary)" }}>{title || "Untitled"}</p>
-        <div className="flex flex-wrap gap-1 mb-1.5">
-          {categories.slice(0, 3).map((c) => (
-            <span key={c.slug} className="text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--bg-raised)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>{c.label}</span>
-          ))}
-        </div>
-        <p className="text-xs" style={{ color: "var(--text-faint)" }}>{new Date(createdAt).toLocaleDateString()}</p>
+      {/* Info — fixed height so all cards align */}
+      <div className="px-3 py-2.5" style={{ minHeight: 72 }}>
+        <p className="line-clamp-2 leading-snug tracking-wide uppercase mb-1"
+          style={{ fontFamily: "var(--font-heading)", fontSize: "0.95rem", fontWeight: 600, color: "var(--text-primary)" }}>
+          {title || "Untitled"}
+        </p>
+        {description && (
+          <p className="line-clamp-2 text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            {description}
+          </p>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pencil, Trash2, Check, X, Play, Image as ImageIcon, Search } from "lucide-react";
 
 interface Category { _id: string; slug: string; label: string }
@@ -22,6 +22,7 @@ export default function MediaManagerClient() {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [editPage, setEditPage] = useState("");
+  const editPageRef = useRef("");
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState<typeof PAGE_OPTIONS[number]>("all");
   const [search, setSearch] = useState("");
@@ -60,22 +61,24 @@ export default function MediaManagerClient() {
     setEditDesc(item.description ?? "");
     setEditCats(item.categories?.map((c) => c._id) ?? []);
     setEditPage(item.page);
+    editPageRef.current = item.page; // sync ref so addNewCategory always has current page
     setNewCat("");
-    setAllCategories([]); // clear immediately before fetch
+    setAllCategories([]);
     loadCategories(item.page);
   }
 
   async function addNewCategory() {
     if (!newCat.trim()) return;
+    const page = editPageRef.current; // always current, never stale
     const res = await fetch("/api/categories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label: newCat.trim(), page: editPage }),
+      body: JSON.stringify({ label: newCat.trim(), page }),
     });
     const j = await res.json();
     if (j.data) {
-      setAllCategories((prev) => prev.find((c) => c._id === j.data._id) ? prev : [...prev, j.data]);
-      setEditCats((prev) => [...prev, j.data._id]);
+      setEditCats((prev) => prev.includes(j.data._id) ? prev : [...prev, j.data._id]);
+      await loadCategories(page);
     }
     setNewCat("");
   }

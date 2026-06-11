@@ -29,6 +29,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       id: m._id.toString(),
       maleName: m.maleName,
       henNames: m.hens.map((h) => h.henName),
+      henGroups: m.hens.map((h) => h.group ?? null),
       sameMarking: m.sameMarking,
       mandatoryMarking: m.mandatoryMarking,
     }));

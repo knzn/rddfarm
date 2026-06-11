@@ -39,63 +39,77 @@ const TYPE_ICONS: Record<string, string> = {
 function ListingCard({ l }: { l: Listing }) {
   const isNew = (Date.now() - new Date(l.createdAt).getTime()) < 7 * 24 * 60 * 60 * 1000;
   const openBloodlines = l.bloodlines.filter((b) => !b.closed);
-  const closedCount = l.bloodlines.length - openBloodlines.length;
+  const closedBloodlines = l.bloodlines.filter((b) => b.closed);
+  const shownOpen = openBloodlines.slice(0, 3);
+  const moreOpen = openBloodlines.length - shownOpen.length;
   const href = `/${l.type}/${l.slug}`;
   const accent = TYPE_ACCENT[l.type];
 
   return (
     <Link href={href}
-      className="shrink-0 w-64 rounded-[14px] overflow-hidden transition-all duration-300 hover:-translate-y-1 group"
-      style={{ background: "var(--bg-surface)", border: `1px solid var(--border)` }}>
-      {/* Accent top bar */}
-      <div className="h-[3px] w-full" style={{ background: `linear-gradient(to right, ${accent}, transparent)` }} />
-      <div className="p-4">
-        {/* Type badge + name */}
-        <div className="flex items-start justify-between gap-2 mb-3">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
-                style={{ background: `${accent}20`, color: accent }}>
-                {TYPE_ICONS[l.type]} {TYPE_LABELS[l.type]}
-              </span>
-              {isNew && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase"
-                  style={{ background: accent, color: "#fff" }}>New</span>
-              )}
-            </div>
-            <span className="font-bold text-lg leading-tight" style={{ fontFamily: "var(--font-heading)", color: "var(--text-primary)" }}>{l.name}</span>
-          </div>
+      className="block rounded-[14px] overflow-hidden transition-all duration-200 hover:-translate-y-1 group"
+      style={{
+        width: 300,
+        background: "var(--bg-surface)",
+        border: `1px solid var(--border)`,
+        borderTop: `3px solid ${accent}`,
+      }}>
+      <div className="p-5">
+
+        {/* Row 1 — type label + NEW badge */}
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: accent }}>
+            {TYPE_ICONS[l.type]} {TYPE_LABELS[l.type]}
+          </span>
+          {isNew && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold"
+              style={{ background: accent, color: "#fff" }}>
+              NEW
+            </span>
+          )}
         </div>
 
-        {/* Release date */}
-        <div className="flex items-center gap-1.5 text-xs mb-3 px-2 py-1.5 rounded-lg"
-          style={{ background: "var(--bg-raised)", color: "var(--text-muted)" }}>
-          <Calendar size={11} />
-          Release: <strong style={{ color: "var(--text-primary)" }}>{fmtRelease(l)}</strong>
+        {/* Row 2 — listing name */}
+        <p className="text-2xl font-bold leading-tight mb-4"
+          style={{ fontFamily: "var(--font-heading)", color: "var(--text-primary)" }}>
+          {l.name}
+        </p>
+
+        {/* Row 3 — release date box */}
+        <div className="flex items-center gap-2 rounded-lg px-3 py-2 mb-4"
+          style={{ background: "var(--bg-raised)", border: "1px solid var(--border)" }}>
+          <Calendar size={13} style={{ color: "var(--text-faint)" }} />
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>Release:</span>
+          <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{fmtRelease(l)}</span>
         </div>
 
-        {/* Bloodlines */}
-        <div className="space-y-1 mb-3">
-          {openBloodlines.slice(0, 3).map((b) => (
-            <div key={b.name} className="flex items-center justify-between text-xs px-2 py-1 rounded"
+        {/* Row 4 — bloodlines */}
+        <div className="space-y-1.5 mb-4">
+          {shownOpen.map((b) => (
+            <div key={b.name} className="flex items-center justify-between rounded-lg px-3 py-2"
               style={{ background: "var(--bg-raised)" }}>
-              <span style={{ color: "var(--text-primary)" }}>{b.name}</span>
-              <span className="font-semibold" style={{ color: "var(--success)" }}>Open</span>
+              <span className="text-sm" style={{ color: "var(--text-primary)" }}>{b.name}</span>
+              <span className="text-xs font-bold" style={{ color: "var(--success)" }}>Open</span>
             </div>
           ))}
-          {openBloodlines.length > 3 && (
-            <p className="text-xs px-2" style={{ color: "var(--text-faint)" }}>+{openBloodlines.length - 3} more open</p>
-          )}
-          {closedCount > 0 && (
-            <p className="text-xs px-2" style={{ color: "var(--text-faint)" }}>{closedCount} full</p>
+          {closedBloodlines.slice(0, 2).map((b) => (
+            <div key={b.name} className="flex items-center justify-between rounded-lg px-3 py-2"
+              style={{ background: "var(--bg-raised)" }}>
+              <span className="text-sm" style={{ color: "var(--text-faint)" }}>{b.name}</span>
+              <span className="text-xs font-bold" style={{ color: "var(--danger)" }}>Full</span>
+            </div>
+          ))}
+          {moreOpen > 0 && (
+            <p className="text-xs px-3" style={{ color: "var(--text-faint)" }}>+{moreOpen} more open</p>
           )}
         </div>
 
-        {/* CTA */}
-        <div className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide transition-all duration-300 group-hover:gap-2"
+        {/* Row 5 — CTA */}
+        <div className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-widest transition-all duration-200 group-hover:gap-3"
           style={{ color: accent }}>
-          Reserve Now <ArrowRight size={12} />
+          Reserve Now <ArrowRight size={13} />
         </div>
+
       </div>
     </Link>
   );

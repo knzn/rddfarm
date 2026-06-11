@@ -3,6 +3,7 @@ import mongoose, { Schema, Document, Model, Types } from "mongoose";
 export interface IHen {
   _id: Types.ObjectId;
   henName: string;
+  group: string | null;
   marking: string | null;
   previousMarking: string | null;
   photo: string | null;
@@ -34,6 +35,7 @@ export interface IMating extends Document {
 const HenSchema = new Schema<IHen>(
   {
     henName: { type: String, required: true, trim: true },
+    group: { type: String, default: null },
     marking: { type: String, default: null },
     previousMarking: { type: String, default: null },
     photo: { type: String, default: null },

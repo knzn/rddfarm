@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     await connectDB();
     const body = await req.json();
 
-    const { listingSlug, buyerName, buyerFacebook, buyerNumber, items, paymentPlan } = body;
+    const { listingSlug, buyerName, buyerFacebook, buyerNumber, items, paymentPlan, customDownPayment } = body;
 
     if (!listingSlug || !buyerName || !buyerFacebook || !buyerNumber || !items?.length || !paymentPlan) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -40,8 +40,11 @@ export async function POST(req: NextRequest) {
       (sum: number, i: { quantity: number; unitPrice: number }) => sum + i.quantity * i.unitPrice,
       0
     );
-    const downPaymentRate = listing.type === "pahulugan" ? 0.3 : 0.5;
-    const downPayment = Math.ceil(totalAmount * downPaymentRate);
+    const suggestedRate = listing.type === "pahulugan" ? 0.3 : 0.5;
+    const suggestedDown = Math.ceil(totalAmount * suggestedRate);
+    const downPayment = customDownPayment != null && Number(customDownPayment) >= 0
+      ? Math.min(Number(customDownPayment), totalAmount)
+      : suggestedDown;
     const balance = totalAmount - downPayment;
 
     const today = new Date();

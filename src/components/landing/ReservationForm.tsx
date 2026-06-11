@@ -52,6 +52,9 @@ export default function ReservationForm({ slug, type }: { slug: string; type: Li
   // Months/Day old: multiple rows (bloodline + qty)
   const [rows, setRows] = useState([{ bloodline: "", qty: 1 }]);
 
+  // Custom down payment — initialized from suggested amount once total is known
+  const [customDown, setCustomDown] = useState<string>("");
+
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<SubmitResult | null>(null);
   const [error, setError] = useState("");
@@ -72,23 +75,25 @@ export default function ReservationForm({ slug, type }: { slug: string; type: Li
   const openBloodlines = listing?.bloodlines.filter((b) => !b.closed) ?? [];
 
   function calcTotal() {
-    if (!listing) return { total: 0, down: 0, balance: 0 };
+    if (!listing) return { total: 0, suggested: 0, down: 0, balance: 0 };
     if (type === "pahulugan") {
       const total = pahRows.reduce((s, row) => {
         const price = listing.prices.find((p) => p.category === row.category)?.amount ?? 0;
         return s + price * row.qty;
       }, 0);
-      const down = Math.ceil(total * 0.3);
-      return { total, down, balance: total - down };
+      const suggested = Math.ceil(total * 0.3);
+      const down = customDown !== "" ? Math.min(parseInt(customDown) || 0, total) : suggested;
+      return { total, suggested, down, balance: total - down };
     } else {
       const pricePerHead = listing.prices[0]?.amount ?? 0;
       const total = rows.reduce((s, r) => s + r.qty * pricePerHead, 0);
-      const down = Math.ceil(total * 0.5);
-      return { total, down, balance: total - down };
+      const suggested = Math.ceil(total * 0.5);
+      const down = customDown !== "" ? Math.min(parseInt(customDown) || 0, total) : suggested;
+      return { total, suggested, down, balance: total - down };
     }
   }
 
-  const { total, down, balance } = calcTotal();
+  const { total, suggested, down, balance } = calcTotal();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -112,7 +117,7 @@ export default function ReservationForm({ slug, type }: { slug: string; type: Li
     const r = await fetch("/api/reservations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ listingSlug: slug, buyerName, buyerFacebook, buyerNumber, paymentPlan, items }),
+      body: JSON.stringify({ listingSlug: slug, buyerName, buyerFacebook, buyerNumber, paymentPlan, items, customDownPayment: down }),
     });
     const j = await r.json();
     if (j.error) { setError(j.error); setSubmitting(false); return; }
@@ -265,10 +270,30 @@ export default function ReservationForm({ slug, type }: { slug: string; type: Li
 
         {/* Live calculation */}
         {total > 0 && (
-          <div className="rounded-lg p-4 space-y-1.5" style={{ background: "var(--bg-raised)" }}>
+          <div className="rounded-lg p-4 space-y-2.5" style={{ background: "var(--bg-raised)" }}>
             <div className="flex justify-between text-sm font-mono"><span style={{ color: "var(--text-muted)" }}>Total</span><span style={{ color: "var(--text-primary)" }}>{fmt(total)}</span></div>
-            <div className="flex justify-between text-sm font-mono"><span style={{ color: "var(--text-muted)" }}>Required Down ({type === "pahulugan" ? "30%" : "50%"})</span><span style={{ color: "var(--warning)" }}>{fmt(down)}</span></div>
-            <div className="flex justify-between text-sm font-mono font-bold"><span style={{ color: "var(--text-muted)" }}>Balance</span><span style={{ color: "var(--danger)" }}>{fmt(balance)}</span></div>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm" style={{ color: "var(--text-muted)" }}>Down Payment</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs" style={{ color: "var(--text-faint)" }}>Suggested: {fmt(suggested)}</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={total}
+                    value={customDown}
+                    onChange={(e) => setCustomDown(e.target.value)}
+                    placeholder={String(suggested)}
+                    className="rounded-md px-2 py-1 text-sm font-mono outline-none w-28 text-right"
+                    style={{ background: "var(--bg-base)", border: "1px solid var(--border)", color: "var(--warning)" }}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-between text-sm font-mono font-bold pt-1 border-t" style={{ borderColor: "var(--border)" }}>
+              <span style={{ color: "var(--text-muted)" }}>Balance</span>
+              <span style={{ color: "var(--danger)" }}>{fmt(balance)}</span>
+            </div>
           </div>
         )}
 

@@ -5,7 +5,7 @@ import VideoCard from "@/components/media/VideoCard";
 import VideoPlayer from "@/components/media/VideoPlayer";
 
 interface Media {
-  _id: string; title: string; url: string; thumbnail?: string;
+  _id: string; title: string; description?: string; url: string; thumbnail?: string;
   duration?: number; categories: { slug: string; label: string }[]; createdAt: string;
 }
 interface Category { slug: string; label: string }
@@ -20,7 +20,7 @@ export default function VideosPage() {
   useEffect(() => {
     Promise.all([
       fetch("/api/media?page=videos&limit=100").then((r) => r.json()),
-      fetch("/api/categories").then((r) => r.json()),
+      fetch("/api/categories?page=videos").then((r) => r.json()),
     ]).then(([m, c]) => {
       setVideos(m.data ?? []);
       setCategories(c.data ?? []);
@@ -67,8 +67,8 @@ export default function VideosPage() {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filtered.map((v) => (
-            <VideoCard key={v._id} title={v.title} thumbnail={v.thumbnail} duration={v.duration}
-              categories={v.categories} createdAt={v.createdAt} onClick={() => setPlaying(v)} />
+            <VideoCard key={v._id} title={v.title} description={v.description} thumbnail={v.thumbnail}
+              duration={v.duration} categories={v.categories} onClick={() => setPlaying(v)} />
           ))}
         </div>
       )}

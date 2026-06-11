@@ -18,7 +18,12 @@ export async function GET(req: NextRequest) {
     if (month) filter.month = parseInt(month);
     if (year) filter.year = parseInt(year);
 
-    const expenses = await FarmExpense.find(filter).sort({ date: -1 }).lean();
+    const raw = await FarmExpense.find(filter).sort({ date: -1 }).lean();
+    // normalize: always expose effective amount regardless of type
+    const expenses = raw.map((e) => ({
+      ...e,
+      effectiveAmount: e.type === "unit" ? (e.totalAmount ?? 0) : (e.amount ?? 0),
+    }));
     return NextResponse.json({ data: expenses });
   } catch (err) {
     if ((err as Error).message === "Unauthorized")
