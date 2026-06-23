@@ -36,6 +36,9 @@ export async function POST(req: NextRequest, { params }: Params) {
           return NextResponse.json({ error: `"${h.marking}" is not a valid combo` }, { status: 400 });
         allMarkings.push(h.marking);
       }
+      // track reserve combos so they stay consumed in the pool
+      const reserve = (a as MarkingAssignment & { reserveCombo?: string }).reserveCombo;
+      if (reserve) allMarkings.push(reserve);
     }
 
     // check no duplicate combos across different matings
@@ -44,10 +47,19 @@ export async function POST(req: NextRequest, { params }: Params) {
     for (const a of assignments) {
       const unique = [...new Set(a.hens.map((h) => h.marking))];
       for (const m of unique) {
-        if (crossMatingMarkings.includes(m))
+        if (crossMatingMarkings.includes(m)) {
+          console.error("[confirm] cross-mating duplicate:", m, "in mating", a.matingId);
           return NextResponse.json({ error: `Combo "${m}" is used across multiple matings` }, { status: 400 });
+        }
         crossMatingMarkings.push(m);
       }
+      // also block if reserve combo collides with another mating's primary
+      const reserve = (a as MarkingAssignment & { reserveCombo?: string }).reserveCombo;
+      if (reserve && crossMatingMarkings.includes(reserve)) {
+        console.error("[confirm] reserve combo collision:", reserve);
+        return NextResponse.json({ error: `Reserve combo "${reserve}" collides with another mating` }, { status: 400 });
+      }
+      if (reserve) crossMatingMarkings.push(reserve);
     }
 
     // atomic writes

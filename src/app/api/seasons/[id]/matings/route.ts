@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import Mating from "@/models/Mating";
 import Season from "@/models/Season";
 import { requireAuthUser } from "@/lib/get-auth-user";
+import { normalizeCombo } from "@/lib/marking-engine";
 import mongoose from "mongoose";
 
 type Params = { params: Promise<{ id: string }> };
@@ -61,7 +62,9 @@ export async function POST(req: NextRequest, { params }: Params) {
       malePhoto: body.malePhoto ?? null,
       noseGroup: null,
       sameMarking,
-      mandatoryMarking: body.mandatoryMarking ?? null,
+      mandatoryMarking: body.mandatoryMarking ? normalizeCombo(body.mandatoryMarking) : null,
+      eggMarking: body.eggMarking ?? null,
+      photos: body.photos ?? [],
       hens,
       useIndividualHenCount: false,
       penEggsLaid: null,

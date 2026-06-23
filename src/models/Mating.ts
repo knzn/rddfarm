@@ -21,6 +21,8 @@ export interface IMating extends Document {
   noseGroup: "LN" | "RN" | "DN" | "NONE" | "OVERFLOW" | null;
   sameMarking: boolean | null;
   mandatoryMarking: string | null;
+  eggMarking: string | null;
+  photos: string[];
   hens: IHen[];
   useIndividualHenCount: boolean;
   penEggsLaid: number | null;
@@ -66,6 +68,8 @@ const MatingSchema = new Schema<IMating>(
     penMaleCount: { type: Number, default: null },
     penFemaleCount: { type: Number, default: null },
     malePhoto: { type: String, default: null },
+    eggMarking: { type: String, default: null },
+    photos: { type: [String], default: [] },
   },
   { timestamps: true }
 );

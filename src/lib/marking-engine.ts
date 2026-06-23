@@ -26,6 +26,7 @@ export interface MarkingAssignment {
   maleName: string;
   noseGroup: NoseGroup;
   hens: HenAssignment[];
+  reserveCombo?: string; // flock mating, no mandatory — second combo reserved for future use
 }
 
 // ── Feet marks + conflict rules ───────────────────────────────────────────────
@@ -155,22 +156,32 @@ export function generateMarkings(
     const henCount = m.henNames.length;
     const hens: HenAssignment[] = [];
 
-    if (m.effectiveMandatory) {
-      // first hen gets mandatory
+    if (m.effectiveMandatory && m.sameMarking !== true && henCount > 1) {
+      // diff marking with mandatory — first hen gets mandatory, rest get unique combos
       usedCombos.add(m.effectiveMandatory);
       hens.push({ henName: m.henNames[0], marking: m.effectiveMandatory });
-      // remaining hens get next available from same group
       for (let i = 1; i < henCount; i++) {
         const next = pickFromPool(groupPool, usedCombos);
         if (!next) throw new Error(`Pool exhausted for group ${group} (mating ${m.maleName})`);
         usedCombos.add(next);
         hens.push({ henName: m.henNames[i], marking: next });
       }
+    } else if (m.effectiveMandatory) {
+      // flock/same marking with mandatory — ALL hens share the mandatory marking
+      usedCombos.add(m.effectiveMandatory);
+      for (const name of m.henNames) hens.push({ henName: name, marking: m.effectiveMandatory });
     } else if (m.sameMarking === true || henCount === 1) {
       const combo = pickFromPool(groupPool, usedCombos);
       if (!combo) throw new Error(`Pool exhausted for group ${group} (mating ${m.maleName})`);
       usedCombos.add(combo);
       for (const name of m.henNames) hens.push({ henName: name, marking: combo });
+      // For flock mating (sameMarking=true, no mandatory) — reserve a second combo
+      let reserveCombo: string | undefined;
+      if (m.sameMarking === true && henCount > 1) {
+        const reserve = pickFromPool(groupPool, usedCombos);
+        if (reserve) { usedCombos.add(reserve); reserveCombo = reserve; }
+      }
+      return { matingId: m.id, maleName: m.maleName, noseGroup: group, hens, reserveCombo };
     } else {
       // diff marking — hens with the same group label share one combo, ungrouped hens get unique
       const groupMarkingMap = new Map<string, string>(); // group label → assigned combo
@@ -246,7 +257,17 @@ export function generateMarkings(
 
 // ── Validation helpers ────────────────────────────────────────────────────────
 
+export function normalizeCombo(combo: string): string {
+  const parts = combo.split("-");
+  const nose = ["LN", "RN", "DN"].includes(parts[0]) ? parts[0] : null;
+  const feet = nose ? parts.slice(1) : parts;
+  // sort feet marks in canonical FEET_MARKS order
+  const sorted = feet.sort((a, b) => FEET_MARKS.indexOf(a as typeof FEET_MARKS[number]) - FEET_MARKS.indexOf(b as typeof FEET_MARKS[number]));
+  return nose ? [nose, ...sorted].join("-") : sorted.join("-");
+}
+
 export function isValidCombo(combo: string): boolean {
   const basePool = buildGroupedPool();
-  return Object.values(basePool).flat().includes(combo);
+  const normalized = normalizeCombo(combo);
+  return Object.values(basePool).flat().includes(normalized);
 }
