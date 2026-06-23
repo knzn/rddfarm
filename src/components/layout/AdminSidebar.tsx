@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Upload, BookOpen, Dumbbell, DollarSign,
-  ShoppingCart, Users, Settings, Image, LogOut, Menu, X,
+  ShoppingCart, Users, Settings, Image, LogOut, Menu, X, Wallet,
 } from "lucide-react";
 
 const NAV = [
@@ -14,6 +14,7 @@ const NAV = [
   { href: "/admin/media",         label: "Manage Media", icon: Image },
   { href: "/admin/reservations",  label: "Reservations", icon: BookOpen },
   { href: "/admin/breeding",      label: "Breeding",     icon: Dumbbell },
+  { href: "/admin/financier",     label: "Financier",    icon: Wallet },
   { href: "/admin/expenses",      label: "Expenses",     icon: DollarSign },
   { href: "/admin/sales",         label: "Sales",        icon: ShoppingCart },
   { href: "/admin/workers",       label: "Workers",      icon: Users },
